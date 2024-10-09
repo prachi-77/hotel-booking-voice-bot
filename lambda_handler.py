@@ -71,30 +71,71 @@ def response_card(messageContent,title,subTitle,buttons):
     
     return msg
 
+def handle_change_details_intent(session_attributes,event):
+    user_input = event['inputTranscript'].lower() 
+    active_contexts= {}
+    print("user input",user_input)
+    slots = event['sessionState']['intent']['slots']
+    if 'name' in user_input:
+        session_attributes['Name'] = None  # Reset the Name slot
+        slot_to_elicit = 'UpdatedName'
+        prompt_message = "Please enter your new name."
+
+    elif 'phone' in user_input:
+        session_attributes['Phone'] = None  # Reset the Phone slot
+        slot_to_elicit = 'UpdatedPhone'
+        prompt_message = "Please enter your new phone number."
+
+    elif 'email' in user_input:
+        session_attributes['Email'] = None  # Reset the Email slot
+        slot_to_elicit = 'UpdatedEmail'
+        prompt_message = "Please enter your new email address."
+    else:
+        # switch to other intent
+        return close(session_attributes, active_contexts, 'Fulfilled', event['sessionState']['intent'], "Updated the name")
+    return elicit_slot(
+            session_attributes,
+            active_contexts,
+            event['sessionState']['intent'],
+            slot_to_elicit,
+            get_plain_text_msg(prompt_message)
+            )   
+
 def handle_book_room_intent(session_attributes,event):
     active_contexts= {}
     slots = event['sessionState']['intent']['slots']
+    user_choice = event['inputTranscript'].lower()
     lat_value_slot = slots.get('latitude')
     long_value_slot = slots.get('longitude')
     lat_value = ''
     long_value = ''
-    if lat_value_slot is not None:
+    lat_msg = ''
+    long_msg = ''
+    if user_choice == "user declined location":
+        event['sessionState']['intent']['slots']['longitude'] = None
+        event['sessionState']['intent']['slots']['latitude'] = None
+        lat_value_slot = None
+        lat_msg = 'Please enter new latitude coordinates.'
+        long_msg = 'Please enter new longitude coordinates.'
+    else:
+        lat_msg = 'Please enter the latitude coordinates displayed on your webpage.'
+        long_msg = 'Please enter the longitude coordinates displayed on your webpage.'
+
+    if (lat_value_slot is not None):
         if 'interpretedValue' in lat_value_slot["value"]:
             lat_value = lat_value_slot["value"]["interpretedValue"]
         else:
-            lat_value = lat_value_slot["value"]["originalValue"]
-       
-        
+            lat_value = lat_value_slot["value"]["originalValue"] 
     else:
         return elicit_slot(
             session_attributes,
             active_contexts,
             event['sessionState']['intent'],
             "latitude",
-            get_plain_text_msg("Please enter the latitude coordinates displayed on your webpage.")
+            get_plain_text_msg(lat_msg)
             )   
     
-    if long_value_slot is not None:
+    if (long_value_slot is not None) :
         if 'interpretedValue' in long_value_slot["value"]:
             long_value = long_value_slot["value"]["interpretedValue"]
         else:
@@ -107,7 +148,7 @@ def handle_book_room_intent(session_attributes,event):
             active_contexts,
             event['sessionState']['intent'],
             "longitude",
-            get_plain_text_msg("Please enter the longitude coordinates displayed on your webpage.")
+            get_plain_text_msg(long_msg)
             ) 
     print("lat---",lat_value, long_value)
     # lat = 19.0152704
@@ -143,7 +184,7 @@ def handle_book_room_intent(session_attributes,event):
         f"{long_float:.6f}° longitude."
         )
     buttons = [{"text": "Yes", "value": "search hotel api"},
-                {"text": "No", "value": "Bye"}]
+                {"text": "No", "value": "user declined location"}]
 
     return elicit_slot(
         session_attributes,
@@ -355,6 +396,7 @@ def lambda_handler(event, context):
         intent_name = event['interpretations'][0]['intent']['name']
         session_attributes = event['sessionState']['sessionAttributes']
         slots = event['sessionState']['intent']['slots']
+        
         match intent_name:
             case 'BookHotelRoom':
                 print("Book Room Intent")
@@ -378,9 +420,14 @@ def lambda_handler(event, context):
                     response = confirm_booking_slot['value']['interpretedValue'] if 'interpretedValue' in confirm_booking_slot['value'] else confirm_booking_slot['value']['originalValue']
                     if response=="Yes":
                         prompt = "Thanks, I have placed your reservation. Have a Good Day. Bye :)"
-                        return close(session_attributes, {}, 'Fulfilled', event['sessionState']['intent'], prompt)
+                        return confirm_intent(session_attributes, "RateExperience", "Rating")
+                        # return close(session_attributes, {}, 'Fulfilled', event['sessionState']['intent'], prompt)
 
                 return handle_confirm_booking_intent(session_attributes,event)
+            case 'ChangeDetails':
+                print("Change details intent")
+                
+                return handle_change_details_intent(session_attributes,event)
                 
 
         
@@ -393,7 +440,5 @@ def lambda_handler(event, context):
 
 
 
-event =  {'sessionId': 'us-east-1:886280b7-aed3-c56b-5112-9222f4cb608e', 'inputTranscript': 'pc@mail.com', 'interpretations': [{'intent': {'confirmationState': 'None', 'name': 'ConfirmBooking', 'slots': {'ConfirmHotelBooking': None}, 'state': 'InProgress'}}, {'nluConfidence': 0.53, 'intent': {'confirmationState': 'None', 'name': 'Greeting', 'slots': {}, 'state': 'InProgress'}, 'interpretationSource': 'Lex'}, {'nluConfidence': 0.48, 'intent': {'confirmationState': 'None', 'name': 'Goodbye', 'slots': {}, 'state': 'InProgress'}, 'interpretationSource': 'Lex'}, {'nluConfidence': 0.48, 'intent': {'confirmationState': 'None', 'name': 'SearchNearbyHotels', 'slots': {'SelectedHotel': None, 'CheckInDate': None, 'StayDuration': None, 'NumberOfAdults': None, 'CheckOutDate': None}, 'state': 'InProgress'}, 'interpretationSource': 'Lex'}, {'nluConfidence': 0.46, 'intent': {'confirmationState': 'None', 'name': 'BotIdentity', 'slots': {}, 'state': 'InProgress'}, 'interpretationSource': 'Lex'}], 'bot': {'aliasId': 'TSTALIASID', 'aliasName': 'TestBotAlias', 'name': 'StaySeeker-hotel-bot', 'version': 'DRAFT', 'localeId': 'en_US', 'id': 'J8YREEFNXO'}, 'responseContentType': 'text/plain; charset=utf-8', 'proposedNextState': {'prompt': {'attempt': 'Initial'}, 'intent': {'confirmationState': 'None', 'name': 'ConfirmBooking', 'slots': {'ConfirmHotelBooking': None}, 'state': 'InProgress'}, 'dialogAction': {'slotToElicit': 'ConfirmHotelBooking', 'type': 'ElicitSlot'}}, 'sessionState': {'sessionAttributes': {'Email': 'pc@mail.com', 'CheckInDate': '2024-10-10', 'CountryValue': 'United Kingdom', 'StayDuration': '3', 'NumberOfAdults': '2', 'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36', 'sessionId': 'us-east-1:886280b7-aed3-c56b-5112-9222f4cb608e', 'Name': 'Prachi Chaudhary', 'SelectedHotel': 'Treehouse Cabin', 'CurrencyValue': 'GBP', 'userPc': 'hi', 'PhoneNumber': '9820066059', 'CityValue': 'N/A', 'LocationValue': 'Frinton-on-Sea, Tendring, Essex, England, CO13 9AZ, United Kingdom', 'CheckOutDate': '2024-10-13'}, 'activeContexts': [], 'intent': {'confirmationState': 'None', 'name': 'ConfirmBooking', 'slots': {'ConfirmHotelBooking': None}, 'state': 'InProgress'}, 'originatingRequestId': 'ffa3deeb-d69a-4ea2-8fd5-7600ba6c9f0f'}, 'messageVersion': '1.0', 'invocationSource': 'DialogCodeHook', 'transcriptions': [{'resolvedContext': {'intent': 'ProvideDetails'}, 'resolvedSlots': {'Email': {'shape': 'Scalar', 'value': {'originalValue': 'pc@mail.com', 'resolvedValues': ['pc@mail.com']}}}, 'transcriptionConfidence': 1.0, 'transcription': 'pc@mail.com'}], 'inputMode': 'Text'}
 
-lambda_handler(event,'gh')
 
