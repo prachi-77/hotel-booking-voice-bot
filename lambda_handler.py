@@ -331,15 +331,8 @@ def handle_search_room_intent(session_attributes,event):
     session_attributes['StayDuration'] = nights
     session_attributes['NumberOfAdults'] = adults_count
     event['sessionState']['intent']['slots']['CheckOutDate'] = get_json_data(checkout_date)
-
-    # all_hotel_result = search_hotels(hotel_info)
-    # session_attributes['SearchedHotelsInfo']= all_hotel_result
- 
-    # properties = all_hotel_result['properties']
-    # selected_property = properties
-    # options = [create_hotel_option(hotel) for hotel in selected_property[:5]]  # Show first 5 hotels
-    # search_hotel_result = options
-
+    # calling google hotels api & it will save result to a .txt file
+    search_hotels(hotel_info)
     search_hotel_result = read_txt()  # Show first 5 hotels
     print("search hotel result",search_hotel_result)
     if "error" in search_hotel_result:
@@ -369,7 +362,7 @@ def handle_confirm_booking_intent(session_attributes,event):
     check_out_time = hotel["check_out_time"]
     amenities = ", ".join(hotel["amenities"])
     if 'link' in hotel:
-        link = hotel["link"]
+        link = hotel['link'][:49]
     else:
         link = "Not Available"
 
@@ -437,8 +430,4 @@ def lambda_handler(event, context):
         logger.error(f"Found error -- {e}")
         traceback.print_exc()
         return close(session_attributes, active_contexts, 'Fulfilled', event['sessionState']['intent'], prompt)
-
-
-
-
 
