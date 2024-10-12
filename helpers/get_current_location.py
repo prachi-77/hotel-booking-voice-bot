@@ -8,7 +8,6 @@ import json
 import requests
 # from serpapi.serp_api_client import SerpApiClientException, SerpApiQuotaExceeded
 
-
 def get_country_name(country_code):
     try:
         country = pycountry.countries.get(alpha_2=country_code)
@@ -29,6 +28,7 @@ def get_current_coord():
         return None
 
 
+    
 def reverse_geocode(lat, lon):
     url = "https://nominatim.openstreetmap.org/reverse"
     params = {
@@ -36,7 +36,8 @@ def reverse_geocode(lat, lon):
         'lat': lat,
         'lon': lon,
         'zoom': 18,
-        'addressdetails': 1
+        'addressdetails': 1,
+        'accept-language': 'en' 
     }
     
     headers = {
@@ -152,10 +153,9 @@ def read_txt():
 
 
 def get_user_location_details(lat,long):
-    location = get_current_coord()
-    print("user loc is--",location)
     location_info = {}
     location_results = reverse_geocode(lat,long)
+    print("location results are",location_results)
     if location_results is not None:
         location_info['location'] = location_results
         currency = get_currency(location_info['location']['country'])[0]
@@ -164,4 +164,5 @@ def get_user_location_details(lat,long):
 
     else:
         print("Unable to retrieve your GPS coordinates.")
+
 
